@@ -1,0 +1,40 @@
+pipeline {
+    agent any 
+    parameters {
+            string(defaultValue: 'None', description: 'Enter Database Name to Restore', name: 'DB_NAME')
+            string(defaultValue: 'None', description: 'Enter OSS Dump file Path as: weekly/December-2019/week-3/bill_payments_service_db/2019-12-13-10:03:53.sql.gz', name: 'OSS_PATH')
+        }
+    environment {
+        RDS_USERNAME = credentials('Rds-User')
+        RDS_PASSWORD = credentials('Rds-Pass')
+        RDS_ENDPOINT = credentials('Rds-Endpoint')
+        ALIYUN_ACCESS_ID = credentials('Aliyun-Access-Id')
+        AlIYUN_ACCESS_KEY = credentials('Aliyun-Access-Key')
+        BUCKET_ENDPOINT = credentials('Bucket-Endpoint')
+        BUCKET_NAME = credentials('OSS-Name')
+        KMS_ID = credentials('kms-id')
+        KMS_REGION = credentials('Kms-Region')
+    }
+    stages {
+        stage('Pulling dump from OSS') {
+            steps {
+                script {
+                    docker.image('<container registry path:Image tag>').withRun('-e "ALIYUN_ACCESS_ID=${ALIYUN_ACCESS_ID}" \
+                    -e "AlIYUN_ACCESS_KEY=${AlIYUN_ACCESS_KEY}" \
+                    -e "RDS_ENDPOINT=${RDS_ENDPOINT}" \
+                    -e "RDS_USERNAME=${RDS_USERNAME}" \
+                    -e "RDS_PASSWORD=${RDS_PASSWORD}" \
+                    -e "BUCKET_ENDPOINT=${BUCKET_ENDPOINT}" \
+                    -e "BUCKET_NAME=${BUCKET_NAME}" \
+                    -e "KMS_ID=${KMS_ID}" \
+                    -e "DB_NAME=${DB_NAME}" \
+                    -e "KMS_REGION=${KMS_REGION}"') { c -> 
+                        docker.image('<container registry path:Image tag>').inside{
+                            sh 'python3 /opt/rdsdecrypt_prod_KMS.py ${OSS_PATH}'
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

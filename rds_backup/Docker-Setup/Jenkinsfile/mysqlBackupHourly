@@ -1,0 +1,43 @@
+    pipeline {
+    agent any 
+    parameters {
+            string(defaultValue: 'hourly', description: 'Hourly Job', name: 'INTERVAL')
+        }
+    triggers {
+        parameterizedCron('''
+            0 */2 * * * % INTERVAL=hourly
+        ''')
+    }
+    environment {
+        RDS_USERNAME = credentials('Rds-User')
+        RDS_PASSWORD = credentials('Rds-Pass')
+        RDS_ENDPOINT = credentials('Rds-Endpoint')
+        ALIYUN_ACCESS_ID = credentials('Aliyun-Access-Id')
+        AlIYUN_ACCESS_KEY = credentials('Aliyun-Access-Key')
+        BUCKET_ENDPOINT = credentials('Bucket-Endpoint')
+        BUCKET_NAME = credentials('OSS-Name')
+        KMS_ID = credentials('kms-id')
+        KMS_REGION = credentials('Kms-Region')
+    }
+    stages {
+        stage('MySQL Backup Hourly') {
+            steps {
+                script {
+                    docker.image('<container registry path:Image tag>').withRun('-e "RDS_ENDPOINT=${RDS_ENDPOINT}" \
+                    -e "RDS_USERNAME=${RDS_USERNAME}" \
+                    -e "RDS_PASSWORD=${RDS_PASSWORD}" \
+                    -e "ALIYUN_ACCESS_ID=${ALIYUN_ACCESS_ID}" \
+                    -e "AlIYUN_ACCESS_KEY=${AlIYUN_ACCESS_KEY}" \
+                    -e "BUCKET_ENDPOINT=${BUCKET_ENDPOINT}" \
+                    -e "BUCKET_NAME=${BUCKET_NAME}" \
+                    -e "KMS_ID=${KMS_ID}" \
+                    -e "KMS_REGION=${KMS_REGION}"') { c -> 
+                        docker.image('<container registry path:Image tag>').inside{
+                            sh 'python3 /opt/rdsbackup_prod_KMS.py ${INTERVAL}'
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
